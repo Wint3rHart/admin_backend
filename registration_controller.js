@@ -1,5 +1,11 @@
 
-let {user_model}=require("./models")
+let {user_model}=require("./models");
+let bcrypt=require("bcrypt");
+let jwt=require("jsonwebtoken");
+let cookie=require("cookie-parser");
+const key="125xyz";
+const generate_access=(x)=>{ return jwt.sign(x,key,{expiresIn:"5min"}) }
+const generate_refresh=(x)=>{return jwt.sign(x,key,{expiresIn:"24h"})}
 // const del=async()=> await user_model.deleteMany({})
 const register=async(req,res)=>{
 
@@ -16,18 +22,32 @@ console.log(req.file);
     }
 };
 
-const signIn=async(req,res)=>{
+const signIn_mw=async(req,res,next)=>{
+console.log("signreq recieved");
+console.log(req.body);
 
 try{
     
     const get=await user_model.findOne({name:req.body.name});
-    if(get){ if(get.email!=req.body.email){return  next(new Error("invalid email")) }   }else{};
+
+   
+    
+    if(get){ if(get.email!=req.body.email){return  next(new Error("invalid email")) } else if(!bcrypt.compareSync(req.body.password,get.password)){return next(new Error("wrong password"))}else{return next()}   }else{console.log("confirmaton");
+    ;return next(new Error("User Doesnt Exist")) };
+
     // need to implement bcrypt comparison in if elsefor password and do no user found in else
 
-}catch(err){}
+}catch(err){console.log(err);
+;return next(new Error(err.message))}
 
 
-}
+};
+const signIn=async(req,res)=>{console.log("inside sign");
+    let access=generate_access({name:req.body.name,email:req.body.email});
+    let refresh=generate_refresh({name:req.body.name,email:req.body.email});
+res.cookie("access_token",access,{maxAge:15 * 60 * 1000,httpOnly:true,secure:true,sameSite:"strict"});
+res.cookie("refresh_token",refresh,{maxAge:24*60*1000,httpOnly:true,secure:true,sameSite:"strict"})
+;return res.status(200).json("user signed in")}
 
 
-module.exports={register}
+module.exports={register,signIn,signIn_mw}
