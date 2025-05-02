@@ -3,6 +3,7 @@ let {user_model}=require("./models");
 let bcrypt=require("bcrypt");
 let jwt=require("jsonwebtoken");
 let cookie=require("cookie-parser");
+const { default: mongoose } = require("mongoose");
 const key="125xyz";
 const generate_access=(x)=>{ return jwt.sign(x,key,{expiresIn:"5min"}) }
 const generate_refresh=(x)=>{return jwt.sign(x,key,{expiresIn:"24h"})}
@@ -32,10 +33,9 @@ try{
 
    
     
-    if(get){ if(get.email!=req.body.email){return  next(new Error("invalid email")) } else if(!bcrypt.compareSync(req.body.password,get.password)){return next(new Error("wrong password"))}else{return next()}   }else{console.log("confirmaton");
-    ;return next(new Error("User Doesnt Exist")) };
+    if(get){ if(get.email!=req.body.email){return  next(new Error("invalid email")) } else if(!bcrypt.compareSync(req.body.password,get.password)){return next(new Error("wrong password"))}else{req.user={name:get.name,email:get.email,_id:get._id};return next()}   }else{console.log("confirmaton");
+    ;return next(new Error("User Doesn't Exist")) };
 
-    // need to implement bcrypt comparison in if elsefor password and do no user found in else
 
 }catch(err){console.log(err);
 ;return next(new Error(err.message))}
@@ -45,6 +45,16 @@ try{
 const signIn=async(req,res)=>{console.log("inside sign");
     let access=generate_access({name:req.body.name,email:req.body.email});
     let refresh=generate_refresh({name:req.body.name,email:req.body.email});
+   let session= await mongoose.startSession();
+
+try{
+    await session.startTransaction();
+    await user_model.updateOne({_id:req.user._id},{$set:{token:refresh}},{session});await session.commitTransaction() }
+    catch(err){
+        next(err.message);await session.abortTransaction()}
+        finally{await session.endSession()};
+
+
 res.cookie("access_token",access,{maxAge:15 * 60 * 1000,httpOnly:true,secure:true,sameSite:"strict"});
 res.cookie("refresh_token",refresh,{maxAge:24*60*1000,httpOnly:true,secure:true,sameSite:"strict"})
 ;return res.status(200).json("user signed in")}

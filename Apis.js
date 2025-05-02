@@ -20,7 +20,7 @@ router.route("/register").post(multer_mw.single("pic"), register);
 router.route("/signIn").post(signIn_mw,signIn);
 
 app.use("/api",router);
-app.use((err,req,res,next)=>{res.status(400).send(err.message)});
+app.use((err,req,res,next)=>{res.status(400).send({msg:err.message})});
 
 app.listen(4700,()=>{console.log("server running");
 })
