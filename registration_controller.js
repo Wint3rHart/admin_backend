@@ -5,7 +5,7 @@ let jwt=require("jsonwebtoken");
 let cookie=require("cookie-parser");
 const { default: mongoose } = require("mongoose");
 const key="125xyz";
-const generate_access=(x)=>{ return jwt.sign(x,key,{expiresIn:"5min"}) }
+const generate_access=(x)=>{ return jwt.sign(x,key,{expiresIn:"2m"}) }
 const generate_refresh=(x)=>{return jwt.sign(x,key,{expiresIn:"24h"})}
 // const del=async()=> await user_model.deleteMany({})
 const register=async(req,res)=>{
@@ -33,8 +33,9 @@ try{
 
    
     
-    if(get){ if(get.email!=req.body.email){return  next(new Error("invalid email")) } else if(!bcrypt.compareSync(req.body.password,get.password)){return next(new Error("wrong password"))}else{req.user={name:get.name,email:get.email,_id:get._id};return next()}   }else{console.log("confirmaton");
-    ;return next(new Error("User Doesn't Exist")) };
+    if(get){ if(get.email!=req.body.email){return  next(new Error("invalid email")) } else if(!bcrypt.compareSync(req.body.password,get.password)){return next(new Error("wrong password"))}else{
+        req.user={name:get.name,email:get.email,_id:get._id};return next()}   }else{
+    return next(new Error("User Doesn't Exist")) };
 
 
 }catch(err){console.log(err);
@@ -43,8 +44,8 @@ try{
 
 };
 const signIn=async(req,res)=>{console.log("inside sign");
-    let access=generate_access({name:req.body.name,email:req.body.email});
-    let refresh=generate_refresh({name:req.body.name,email:req.body.email});
+    let access=generate_access({name:req.user.name,email:req.user.email,id:req.user._id});
+    let refresh=generate_refresh({name:req.body.name,email:req.body.email,id:req.user._id});
    let session= await mongoose.startSession();
 
 try{
@@ -55,9 +56,9 @@ try{
         finally{await session.endSession()};
 
 
-res.cookie("access_token",access,{maxAge:15 * 60 * 1000,httpOnly:true,secure:true,sameSite:"strict"});
-res.cookie("refresh_token",refresh,{maxAge:24*60*1000,httpOnly:true,secure:true,sameSite:"strict"})
+res.cookie("access",access,{maxAge:2 * 60 * 1000,httpOnly:true,secure:true,sameSite:"strict"});
+res.cookie("refresh",refresh,{maxAge:24*60*60*1000,httpOnly:true,secure:true,sameSite:"strict"})
 ;return res.status(200).json("user signed in")}
 
 
-module.exports={register,signIn,signIn_mw}
+module.exports={register,signIn,signIn_mw,generate_access,generate_refresh};
